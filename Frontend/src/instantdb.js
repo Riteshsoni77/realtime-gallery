@@ -10,7 +10,7 @@ export const schema = i.schema({
       imageId: i.string(),
       emoji: i.string(),
       count: i.number(),
-      user: i.string(), // Optional: for feed/user features
+      user: i.string(),
       createdAt: i.number(),
     }),
     comments: i.entity({
@@ -20,10 +20,15 @@ export const schema = i.schema({
       createdAt: i.number(),
     }),
     feed: i.entity({
-      type: i.string(), // "reaction" or "comment"
+      type: i.string(),
       imageId: i.string(),
-      emoji: i.string(), // for reactions
-      text: i.string(),  // for comments
+      emoji: i.string(),
+      text: i.string(),
+      user: i.string(),
+      createdAt: i.number(),
+    }),
+    likes: i.entity({
+      imageId: i.string(),
       user: i.string(),
       createdAt: i.number(),
     }),

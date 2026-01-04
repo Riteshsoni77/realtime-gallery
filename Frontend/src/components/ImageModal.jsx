@@ -1,39 +1,62 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { db } from '../instantdb';
+import Picker from '@emoji-mart/react';
+import { FaRegHeart, FaHeart } from "react-icons/fa";
 
-const EMOJIS = ['👍', '❤️', '😂', '🔥', '😍', '👏', '😮', '😢'];
+const DEFAULT_EMOJIS = ['👍', '❤️', '😃', '😢', '🙏', '👎', '😡'];
+const MAX_EMOJIS = 7;
 
 const ImageModal = ({ image, onClose, user }) => {
   const [comment, setComment] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+  const [emojiBar, setEmojiBar] = useState(DEFAULT_EMOJIS);
+
   const { data } = db.useQuery({
     reactions: {},
     comments: {},
   });
 
-  const reactions = (data?.reactions || []).filter(r => r.imageId === image?.id);
-  const comments = (data?.comments || []).filter(c => c.imageId === image?.id);
+  const { data: likesData } = db.useQuery({ likes: {} });
+
+  const reactions = useMemo(
+    () => (data?.reactions || []).filter(r => r.imageId === image?.id),
+    [data, image]
+  );
+  const comments = useMemo(
+    () => (data?.comments || []).filter(c => c.imageId === image?.id),
+    [data, image]
+  );
+  const likes = likesData?.likes || [];
 
   if (!image || !image.id || !image.urls) return null;
 
-  const handleReact = (emoji) => {
-    const existing = reactions.find(r => r.emoji === emoji);
+  // Find if the current user has reacted with this emoji
+  const userReaction = (emoji) =>
+    reactions.find(r => r.emoji === emoji && r.user === user);
+
+  // Add or remove reaction
+  const handleReact = (emojiObj) => {
+    const emojiValue = emojiObj.native || emojiObj; // emoji-mart returns an object
+    const existing = reactions.find(r => r.emoji === emojiValue && r.user === user);
+
     if (existing) {
+      // Remove reaction
       db.transact([
-        db.tx.reactions[existing.id].count.increment(1),
+        db.tx.reactions[existing.id].delete(),
         db.tx.feed[crypto.randomUUID()].update({
-          type: "reaction",
+          type: "reaction-removed",
           imageId: image.id,
-          emoji,
+          emoji: emojiValue,
           user,
           createdAt: Date.now(),
         }),
       ]);
     } else {
-      const reactionId = crypto.randomUUID();
+      // Add reaction
       db.transact([
-        db.tx.reactions[reactionId].update({
+        db.tx.reactions[crypto.randomUUID()].update({
           imageId: image.id,
-          emoji,
+          emoji: emojiValue,
           count: 1,
           user,
           createdAt: Date.now(),
@@ -41,20 +64,35 @@ const ImageModal = ({ image, onClose, user }) => {
         db.tx.feed[crypto.randomUUID()].update({
           type: "reaction",
           imageId: image.id,
-          emoji,
+          emoji: emojiValue,
           user,
           createdAt: Date.now(),
         }),
       ]);
+
+      // Add emoji to bar if not present, replace least-used if full
+      setEmojiBar((prev) => {
+        if (prev.includes(emojiValue)) return prev;
+        if (prev.length < MAX_EMOJIS) return [...prev, emojiValue];
+        // Replace least-used emoji (find emoji with lowest count)
+        const counts = prev.map(e =>
+          reactions.filter(r => r.emoji === e).reduce((sum, r) => sum + r.count, 0)
+        );
+        const minIdx = counts.indexOf(Math.min(...counts));
+        const newBar = [...prev];
+        newBar[minIdx] = emojiValue;
+        return newBar;
+      });
     }
+
+    setShowPicker(false);
   };
 
   const handleAddComment = (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
-    const commentId = crypto.randomUUID();
     db.transact([
-      db.tx.comments[commentId].update({
+      db.tx.comments[crypto.randomUUID()].update({
         imageId: image.id,
         text: comment,
         user,
@@ -69,6 +107,28 @@ const ImageModal = ({ image, onClose, user }) => {
       }),
     ]);
     setComment("");
+  };
+
+  // Like button logic
+  const imageLikes = likes.filter(like => like.imageId === image.id);
+  const likeCount = imageLikes.length;
+  const userLiked = imageLikes.some(like => like.user === user);
+
+  const handleLike = () => {
+    const existing = likes.find(like => like.imageId === image.id && like.user === user);
+    if (existing) {
+      db.transact([
+        db.tx.likes[existing.id].delete(),
+      ]);
+    } else {
+      db.transact([
+        db.tx.likes[crypto.randomUUID()].update({
+          imageId: image.id,
+          user,
+          createdAt: Date.now(),
+        }),
+      ]);
+    }
   };
 
   return (
@@ -87,25 +147,64 @@ const ImageModal = ({ image, onClose, user }) => {
           className="w-full max-h-[60vh] object-contain rounded-xl mb-6 shadow"
         />
         <h2 className="text-xl font-bold mb-3 text-gray-800">{image.description || 'Untitled'}</h2>
-        <div className="flex gap-2 flex-wrap justify-center bg-gray-50 p-2 rounded shadow">
-          {EMOJIS.map((emoji) => {
-            const r = reactions.find(x => x.emoji === emoji);
+        
+        {/* Horizontal emoji bar with + button */}
+        <div className="flex items-center gap-2 justify-center bg-pink-100 rounded-full px-4 py-2 mb-4 shadow">
+          {emojiBar.map((emoji) => {
+            const r = reactions.filter(x => x.emoji === emoji);
+            const reacted = !!userReaction(emoji);
             return (
               <button
                 key={emoji}
-                className="text-2xl hover:scale-125 transition-transform relative"
-                onClick={() => handleReact(emoji)}
+                className={`text-2xl hover:scale-125 transition-transform relative ${reacted ? "ring-2 ring-blue-400" : ""}`}
+                onClick={() => handleReact({ native: emoji })}
+                title={reacted ? "Remove your reaction" : "React"}
               >
                 {emoji}
-                {r && (
+                {r.length > 0 && (
                   <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1">
-                    {r.count}
+                    {r.reduce((sum, rr) => sum + rr.count, 0)}
                   </span>
                 )}
               </button>
             );
           })}
+          {/* + button to open emoji picker */}
+          <button
+            className="text-2xl px-2 hover:bg-pink-200 rounded-full"
+            onClick={() => setShowPicker((v) => !v)}
+            aria-label="Pick Emoji"
+          >
+            +
+          </button>
         </div>
+
+        {/* Emoji Picker */}
+        {showPicker && (
+          <div className="flex justify-center">
+            <Picker
+              onEmojiSelect={handleReact}
+              theme="light"
+              style={{ width: '100%', height: '350px' }}
+            />
+          </div>
+        )}
+
+        {/* Like button */}
+        <div className="flex justify-center mb-4">
+          <button
+            className="flex items-center gap-1 text-2xl transition-colors"
+            onClick={handleLike}
+          >
+            {userLiked ? (
+              <FaHeart className="text-red-500" />
+            ) : (
+              <FaRegHeart className="text-gray-500" />
+            )}
+            <span className="text-base font-bold">{likeCount}</span>
+          </button>
+        </div>
+
         <div className="mt-8 w-full">
           <h3 className="text-lg font-semibold mb-2 text-gray-700">Comments</h3>
           <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
