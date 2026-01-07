@@ -36,7 +36,7 @@ export const schema = i.schema({
 });
 
 export const db = init({
-  appId: "    a7d639dd-3aa8-4e30-9496-0830934ee5e6 ",
+  appId: "a7d639dd-3aa8-4e30-9496-0830934ee5e6",
   schema,
 });
 
