@@ -10,6 +10,7 @@ const ImageModal = ({ image, onClose, user }) => {
   const [comment, setComment] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [emojiBar, setEmojiBar] = useState(DEFAULT_EMOJIS);
+  const [pendingComments, setPendingComments] = useState([]);
 
   const { data } = db.useQuery({
     reactions: {},
@@ -17,6 +18,10 @@ const ImageModal = ({ image, onClose, user }) => {
   });
 
   const { data: likesData } = db.useQuery({ likes: {} });
+  const likes = likesData?.likes || [];
+  const imageLikes = likes.filter(like => like.imageId === image.id);
+  const likeCount = imageLikes.length;
+  const userLiked = imageLikes.some(like => like.user === user);
 
   const reactions = useMemo(
     () => (data?.reactions || []).filter(r => r.imageId === image?.id),
@@ -26,7 +31,6 @@ const ImageModal = ({ image, onClose, user }) => {
     () => (data?.comments || []).filter(c => c.imageId === image?.id),
     [data, image]
   );
-  const likes = likesData?.likes || [];
 
   if (!image || !image.id || !image.urls) return null;
 
@@ -91,8 +95,24 @@ const ImageModal = ({ image, onClose, user }) => {
   const handleAddComment = (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
+
+    // 1. Optimistically add to pendingComments
+    const tempId = crypto.randomUUID();
+    setPendingComments((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        imageId: image.id,
+        text: comment,
+        user,
+        createdAt: Date.now(),
+        pending: true,
+      },
+    ]);
+
+    // 2. Send to InstantDB
     db.transact([
-      db.tx.comments[crypto.randomUUID()].update({
+      db.tx.comments[tempId].update({
         imageId: image.id,
         text: comment,
         user,
@@ -106,24 +126,33 @@ const ImageModal = ({ image, onClose, user }) => {
         createdAt: Date.now(),
       }),
     ]);
+
     setComment("");
   };
 
   // Like button logic
-  const imageLikes = likes.filter(like => like.imageId === image.id);
-  const likeCount = imageLikes.length;
-  const userLiked = imageLikes.some(like => like.user === user);
-
-  const handleLike = () => {
-    const existing = likes.find(like => like.imageId === image.id && like.user === user);
+  const handleLike = (imageId) => {
+    const existing = likes.find(like => like.imageId === imageId && like.user === user);
     if (existing) {
       db.transact([
         db.tx.likes[existing.id].delete(),
+        db.tx.feed[crypto.randomUUID()].update({
+          type: "unlike",
+          imageId,
+          user,
+          createdAt: Date.now(),
+        }),
       ]);
     } else {
       db.transact([
         db.tx.likes[crypto.randomUUID()].update({
-          imageId: image.id,
+          imageId,
+          user,
+          createdAt: Date.now(),
+        }),
+        db.tx.feed[crypto.randomUUID()].update({
+          type: "like",
+          imageId,
           user,
           createdAt: Date.now(),
         }),
@@ -131,9 +160,17 @@ const ImageModal = ({ image, onClose, user }) => {
     }
   };
 
+  // Merge pendingComments and real comments, filter out duplicates
+  const allComments = [
+    ...pendingComments.filter(
+      (pc) => !comments.some((c) => c.id === pc.id)
+    ),
+    ...comments,
+  ];
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
-      <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] p-8 relative overflow-auto">
+      <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] p-4 sm:p-8 relative overflow-auto">
         <button
           className="absolute top-4 right-4 text-3xl text-gray-400 hover:text-gray-700 transition-colors"
           onClick={onClose}
@@ -194,7 +231,7 @@ const ImageModal = ({ image, onClose, user }) => {
         <div className="flex justify-center mb-4">
           <button
             className="flex items-center gap-1 text-2xl transition-colors"
-            onClick={handleLike}
+            onClick={() => handleLike(image.id)}
           >
             {userLiked ? (
               <FaHeart className="text-red-500" />
@@ -223,15 +260,40 @@ const ImageModal = ({ image, onClose, user }) => {
             </button>
           </form>
           <div className="space-y-2 max-h-32 overflow-y-auto">
-            {comments.length === 0 && (
+            {allComments.length === 0 && (
               <div className="text-gray-400 text-sm">No comments yet.</div>
             )}
-            {comments.map((c, i) => (
-              <div key={i} className="bg-gray-100 rounded px-3 py-2 text-gray-800">
-                <b>{c.user}</b>: {c.text}
-                <span className="ml-2 text-xs text-gray-400">
-                  {c.createdAt ? new Date(c.createdAt).toLocaleTimeString() : ""}
+            {allComments.map((c, i) => (
+              <div
+                key={c.id || i}
+                className={`bg-gray-100 rounded px-3 py-2 text-gray-800 flex items-center justify-between ${c.pending ? "opacity-50" : ""}`}
+              >
+                <span>
+                  <b>{c.user}</b>: {c.text}
+                  <span className="ml-2 text-xs text-gray-400">
+                    {c.createdAt ? new Date(c.createdAt).toLocaleTimeString() : ""}
+                  </span>
                 </span>
+                {c.user === user && (
+                  <button
+                    className="ml-2 text-xs text-gray-400 hover:text-red-500"
+                    onClick={() => {
+                      db.transact([
+                        db.tx.comments[c.id].delete(),
+                        db.tx.feed[crypto.randomUUID()].update({
+                          type: "comment-removed",
+                          imageId: image.id,
+                          text: c.text,
+                          user,
+                          createdAt: Date.now(),
+                        }),
+                      ]);
+                    }}
+                    title="Delete your comment"
+                  >
+                    🗑️
+                  </button>
+                )}
               </div>
             ))}
           </div>

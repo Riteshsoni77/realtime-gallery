@@ -51,10 +51,22 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
     if (existing) {
       db.transact([
         db.tx.likes[existing.id].delete(),
+        db.tx.feed[crypto.randomUUID()].update({
+          type: "unlike",
+          imageId,
+          user,
+          createdAt: Date.now(),
+        }),
       ]);
     } else {
       db.transact([
         db.tx.likes[crypto.randomUUID()].update({
+          imageId,
+          user,
+          createdAt: Date.now(),
+        }),
+        db.tx.feed[crypto.randomUUID()].update({
+          type: "like",
           imageId,
           user,
           createdAt: Date.now(),
@@ -85,7 +97,7 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
         placeholder="Enter your name"
       />
 
-      <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {images.map((img) => {
           // Get reactions for this image, grouped by emoji
           const imgReactions = reactions
@@ -143,7 +155,6 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
                 </span>
                 {/* Other emojis */}
                 {Object.entries(imgReactions)
-                  .filter(([emoji]) => emoji !== "❤️")
                   .map(([emoji, arr]) => (
                     <button
                       key={emoji}
