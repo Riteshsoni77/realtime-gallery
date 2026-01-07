@@ -84,18 +84,16 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
     }
   }, [focusedImageId, images, setFocusedImageId]);
 
+  // Add a check for username
+  const isUserSet = !!user && user.trim().length > 0;
+
   return (
     <div className="min-h-screen bg-gray-50 px-4">
       <h1 className="text-4xl font-bold text-center py-8 text-slate-800">
         Realtime Gallery
       </h1>
 
-      <input
-        className="border px-2 py-1 rounded mb-4"
-        value={user}
-        onChange={e => setUser(e.target.value)}
-        placeholder="Enter your name"
-      />
+      
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {images.map((img) => {
@@ -119,8 +117,8 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
           return (
             <div
               key={img.id}
-              className="group cursor-pointer"
-              onClick={() => setSelectedImage(img)}
+              className={`group cursor-pointer ${!isUserSet ? "opacity-50 pointer-events-none" : ""}`}
+              onClick={() => isUserSet && setSelectedImage(img)}
             >
               <div className="overflow-hidden rounded-xl shadow-md">
                 <img
@@ -140,6 +138,8 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
                 <button
                   className="flex items-center gap-1 text-xl transition-colors"
                   onClick={() => handleLike(img.id)}
+                  disabled={!isUserSet}
+                  title={!isUserSet ? "Enter your name to like" : ""}
                 >
                   {userLiked ? (
                     <FaHeart className="text-red-500" />
@@ -160,6 +160,8 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
                       key={emoji}
                       className="text-xl hover:scale-125 transition-transform relative"
                       onClick={() => handleGridReact(img.id, emoji)}
+                      disabled={!isUserSet}
+                      title={!isUserSet ? "Enter your name to react" : ""}
                     >
                       {emoji}
                       <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1">

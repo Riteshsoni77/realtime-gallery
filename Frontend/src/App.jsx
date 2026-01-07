@@ -59,10 +59,11 @@ function App() {
         {showPrompt && (
           <div className="absolute left-1/2 top-8 -translate-x-1/2 z-50">
             <div className="bg-white border border-gray-200 shadow-lg rounded px-6 py-4 flex flex-col items-center">
-              <h2 className="text-base font-semibold mb-2">Enter your name</h2>
+              <h2 className="text-base font-semibold mb-2">Please enter your name to access the gallery.</h2>
+             
               <input
                 className="border px-2 py-1 rounded w-48 mb-2"
-                placeholder="Your name"
+                placeholder="Please enter your name to access the gallery"
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === "Enter" && e.target.value.trim()) {
