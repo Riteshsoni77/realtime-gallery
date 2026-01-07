@@ -2,35 +2,44 @@ import { i, init } from "@instantdb/react";
 
 export const schema = i.schema({
   entities: {
+    $files: i.entity({
+      path: i.string().unique().indexed(),
+      url: i.string().optional(),
+    }),
+    $users: i.entity({
+      email: i.string().unique().indexed().optional(),
+      imageURL: i.string().optional(),
+      type: i.string().optional(),
+    }),
     images: i.entity({
       url: i.string(),
       description: i.string(),
     }),
     reactions: i.entity({
-      imageId: i.string(),
-      emoji: i.string(),
-      count: i.number(),
-      user: i.string(),
-      createdAt: i.number(),
+      imageId: i.string().optional(),
+      emoji: i.string().optional(),
+      count: i.number().optional(),
+      user: i.string().optional(),
+      createdAt: i.number().optional(),
     }),
     comments: i.entity({
-      imageId: i.string(),
-      text: i.string(),
-      user: i.string(),
-      createdAt: i.number(),
+      imageId: i.string().optional(),
+      text: i.string().optional(),
+      user: i.string().optional(),
+      createdAt: i.number().optional(),
     }),
     feed: i.entity({
-      type: i.string(),
-      imageId: i.string(),
-      emoji: i.string(),
-      text: i.string(),
-      user: i.string(),
-      createdAt: i.number(),
+      type: i.string().optional(),
+      imageId: i.string().optional(),
+      emoji: i.string().optional(),
+      text: i.string().optional(),
+      user: i.string().optional(),
+      createdAt: i.number().optional(),
     }),
     likes: i.entity({
-      imageId: i.string(),
-      user: i.string(),
-      createdAt: i.number(),
+      imageId: i.string().optional(),
+      user: i.string().optional(),
+      createdAt: i.number().optional(),
     }),
   },
 });
