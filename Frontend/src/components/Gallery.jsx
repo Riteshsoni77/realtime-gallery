@@ -95,7 +95,7 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
 
       
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
         {images.map((img) => {
           // Get reactions for this image, grouped by emoji
           const imgReactions = reactions

@@ -1,19 +1,52 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { db } from "../instantdb";
-import { FaHeart, FaRegHeart, FaRegComment, FaSmile } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaRegComment } from "react-icons/fa";
 
 const Feed = ({ images, onFocusImage }) => {
-  const { data, isLoading, isError, error } = db.useQuery({ feed: {} });
-  const feed = (data?.feed || []).sort((a, b) => b.createdAt - a.createdAt);
+  // Add loading and error states if your db.useQuery supports them
+  const { data: feedData, isLoading, error } = db.useQuery({ feed: {} });
+  const feed = (feedData?.feed || []).sort((a, b) => b.createdAt - a.createdAt);
 
+  // Track IDs of newly added feed items
+  const [animatedIds, setAnimatedIds] = useState([]);
+  const prevFeedLength = useRef(feed.length);
+
+  useEffect(() => {
+    if (feed.length > prevFeedLength.current) {
+      // New items added at the top
+      const newIds = feed
+        .slice(0, feed.length - prevFeedLength.current)
+        .map((f) => f.id);
+      setAnimatedIds((ids) => [...newIds, ...ids]);
+      // Remove animation after 1s
+      setTimeout(() => {
+        setAnimatedIds((ids) => ids.filter((id) => !newIds.includes(id)));
+      }, 1000);
+    }
+    prevFeedLength.current = feed.length;
+  }, [feed]);
+
+  // Loading state
   if (isLoading) {
-    return <div className="text-center py-8 text-gray-400">Loading feed...</div>;
+    return (
+      <div className="text-center py-8 text-gray-400 animate-pulse">
+        Loading feed...
+      </div>
+    );
   }
-  if (isError) {
+
+  // Error state
+  if (error) {
     return (
       <div className="text-center py-8 text-red-500">
-        Error loading feed: {error?.message || "Unknown error"}
+        Failed to load feed. Please try again later.
       </div>
+    );
+  }
+
+  if (feed.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-400">No activity yet...</div>
     );
   }
 
@@ -26,7 +59,12 @@ const Feed = ({ images, onFocusImage }) => {
           return (
             <div
               key={item.id}
-              className="flex items-center gap-3 bg-white rounded shadow px-4 py-2 cursor-pointer hover:bg-blue-50 animate-fadeIn border-l-4"
+              className={`flex items-center gap-3 bg-white rounded shadow px-4 py-2 cursor-pointer hover:bg-blue-50 animate-fadeIn border-l-4
+              ${
+                animatedIds.includes(item.id)
+                  ? "opacity-0 translate-y-4 animate-fade-in"
+                  : "opacity-100 translate-y-0"
+              }`}
               style={{
                 borderColor:
                   item.type === "like"
@@ -92,6 +130,17 @@ const Feed = ({ images, onFocusImage }) => {
           );
         })}
       </div>
+      <style>
+        {`
+          @keyframes fade-in {
+            from { opacity: 0; transform: translateY(16px);}
+            to { opacity: 1; transform: translateY(0);}
+          }
+          .animate-fade-in {
+            animation: fade-in 0.7s cubic-bezier(.4,0,.2,1) forwards;
+          }
+        `}
+      </style>
     </div>
   );
 };
