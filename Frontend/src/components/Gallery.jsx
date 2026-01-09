@@ -104,15 +104,15 @@ const Gallery = ({ loader }) => {
     setLoading(false);
   }, [search, page]);
 
-  // Reset images when search changes
+  
   useEffect(() => {
     setPage(1);
   }, [search]);
 
-  // Fetch images when page or search changes
+  
   useEffect(() => {
     loadImages();
-    // eslint-disable-next-line
+    
   }, [page, search]);
 
   // Infinite scroll observer

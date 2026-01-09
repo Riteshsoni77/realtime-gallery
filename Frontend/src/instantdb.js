@@ -1,5 +1,7 @@
 import { i, init } from "@instantdb/react";
 
+const APP_ID = "a7d639dd-3aa8-4e30-9496-0830934ee5e6"; // Replace with your actual App ID
+
 export const schema = i.schema({
   entities: {
     $files: i.entity({
@@ -45,7 +47,7 @@ export const schema = i.schema({
 });
 
 export const db = init({
-  appId: "a7d639dd-3aa8-4e30-9496-0830934ee5e6",
+  appId: APP_ID,
   schema,
 });
 

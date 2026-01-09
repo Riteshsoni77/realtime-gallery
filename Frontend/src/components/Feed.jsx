@@ -3,7 +3,7 @@ import { db } from "../instantdb";
 import { FaHeart, FaRegHeart, FaRegComment } from "react-icons/fa";
 
 const Feed = ({ images, onFocusImage }) => {
-  // Add loading and error states if your db.useQuery supports them
+  
   const { data: feedData, isLoading, error } = db.useQuery({ feed: {} });
   const feed = (feedData?.feed || []).sort((a, b) => b.createdAt - a.createdAt);
 
@@ -18,7 +18,7 @@ const Feed = ({ images, onFocusImage }) => {
         .slice(0, feed.length - prevFeedLength.current)
         .map((f) => f.id);
       setAnimatedIds((ids) => [...newIds, ...ids]);
-      // Remove animation after 1s
+      
       setTimeout(() => {
         setAnimatedIds((ids) => ids.filter((id) => !newIds.includes(id)));
       }, 1000);
@@ -26,7 +26,7 @@ const Feed = ({ images, onFocusImage }) => {
     prevFeedLength.current = feed.length;
   }, [feed]);
 
-  // Loading state
+  
   if (isLoading) {
     return (
       <div className="text-center py-8 text-gray-400 animate-pulse">
@@ -35,7 +35,7 @@ const Feed = ({ images, onFocusImage }) => {
     );
   }
 
-  // Error state
+ 
   if (error) {
     return (
       <div className="text-center py-8 text-red-500">
@@ -206,7 +206,7 @@ const Feed = ({ images, onFocusImage }) => {
             );
           }
 
-          // Unknown or incomplete event: skip rendering
+        
           return null;
         })}
       </div>

@@ -43,7 +43,7 @@ const ImageModal = ({ image, onClose, user, focusComment }) => {
 
   if (!image || !image.id || !image.urls) return null;
 
-  // Find if the current user has reacted with this emoji
+  
   const userReaction = (emoji) =>
     reactions.find(r => r.emoji === emoji && r.user === user);
 

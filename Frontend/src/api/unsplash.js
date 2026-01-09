@@ -12,7 +12,7 @@ export const fetchImages = async (page = 1, perPage = 12) => {
   return data;
 };
 
-// Add this function for searching images
+
 export const searchImages = async (query, page = 1, perPage = 12) => {
   const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
   const response = await fetch(url, {
