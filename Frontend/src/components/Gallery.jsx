@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { fetchImages, searchImages } from "../api/unsplash";
 import ImageModal from "./ImageModal";
-import { fetchImages } from "../api/unsplash";
 import { db } from "../instantdb";
 import { useUserStore } from "../store/userStore";
 import { FaRegHeart, FaHeart, FaRegComment } from "react-icons/fa";
 
-const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader }) => {
+const Gallery = ({ loader }) => {
   const [selectedImage, setSelectedImage] = useState(null);
+  const [focusComment, setFocusComment] = useState(false);
+  const [search, setSearch] = useState("");
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1); // Track current page
+  const [hasMore, setHasMore] = useState(true);
 
   // Real-time reactions
   const { data: reactionsData } = db.useQuery({ reactions: {} });
@@ -38,7 +44,7 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
           imageId,
           emoji,
           count: 1,
-          user, // use from Zustand
+          user, 
           createdAt: Date.now(),
         }),
       ]);
@@ -75,17 +81,54 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
     }
   };
 
-  // Open modal when focusedImageId changes
-  useEffect(() => {
-    if (focusedImageId) {
-      const img = images.find(i => i.id === focusedImageId);
-      if (img) setSelectedImage(img);
-      setFocusedImageId(null); // Reset after focusing
-    }
-  }, [focusedImageId, images, setFocusedImageId]);
-
-  // Add a check for username
+  
   const isUserSet = !!user && user.trim().length > 0;
+
+  // Fetch images on mount or when search changes
+  const loadImages = useCallback(async () => {
+    setLoading(true);
+    try {
+      let imgs = [];
+      if (search.trim() === "") {
+        imgs = await fetchImages(page);
+      } else {
+        imgs = await searchImages(search, page);
+      }
+      setImages(prev =>
+        page === 1 ? imgs : [...prev, ...imgs]
+      );
+      setHasMore(imgs.length > 0);
+    } catch (e) {
+      setHasMore(false);
+    }
+    setLoading(false);
+  }, [search, page]);
+
+  // Reset images when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  // Fetch images when page or search changes
+  useEffect(() => {
+    loadImages();
+    // eslint-disable-next-line
+  }, [page, search]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!loader || !loader.current || !hasMore || loading) return;
+    const observer = new window.IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          setPage(prev => prev + 1);
+        }
+      },
+      { threshold: 1 }
+    );
+    observer.observe(loader.current);
+    return () => observer.disconnect();
+  }, [loader, hasMore, loading]);
 
   return (
     <div className="min-h-screen bg-gray-50 px-4">
@@ -93,9 +136,18 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
         Realtime Gallery
       </h1>
 
-      
+      {/* Search Bar */}
+      <div className="max-w-md mx-auto mb-6">
+        <input
+          type="text"
+          className="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Search images by keyword..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+      <div className="max-w-7xl mx-auto grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
         {images.map((img) => {
           // Get reactions for this image, grouped by emoji
           const imgReactions = reactions
@@ -124,11 +176,11 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
                 <img
                   src={img.urls.small}
                   alt={img.alt_description || "Gallery image"}
-                  className="w-full h-48 object-cover transform group-hover:scale-110 transition duration-300"
+                  className="w-full h-auto aspect-[4/3] object-cover transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
               <p className="mt-2 text-sm text-gray-700 text-center truncate">
-                {img.alt_description || img.description || "Untitled"}
+                {img.alt_description || img.description || img.user?.name || ""}
               </p>
               <div
                 className="flex justify-center gap-4 mt-1"
@@ -149,10 +201,18 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
                   <span className="text-sm font-bold">{likeCount}</span>
                 </button>
                 {/* Comment button */}
-                <span className="flex items-center text-xl text-gray-700 gap-1">
+                <button
+                  className="flex items-center text-xl text-gray-700 gap-1"
+                  onClick={() => {
+                    setSelectedImage(img);
+                    setFocusComment(true);
+                  }}
+                  disabled={!isUserSet}
+                  title={!isUserSet ? "Enter your name to comment" : ""}
+                >
                   <FaRegComment />
                   <span className="text-sm font-bold">{commentCount}</span>
-                </span>
+                </button>
                 {/* Other emojis */}
                 {Object.entries(imgReactions)
                   .map(([emoji, arr]) => (
@@ -175,21 +235,22 @@ const Gallery = ({ images, loading, focusedImageId, setFocusedImageId, loader })
         })}
       </div>
 
-      {/* MODAL */}
       {selectedImage && (
         <ImageModal
           image={selectedImage}
-          onClose={() => setSelectedImage(null)}
+          onClose={() => {
+            setSelectedImage(null);
+            setFocusComment(false);
+          }}
           user={user}
+          focusComment={focusComment}
         />
       )}
 
-      {/* LOADING & ERROR */}
       {loading && (
         <div className="text-center py-6 text-gray-500">Loading...</div>
       )}
 
-      {/* OBSERVER */}
       <div ref={loader} className="h-10" />
     </div>
   );

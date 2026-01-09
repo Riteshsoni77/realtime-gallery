@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { db } from '../instantdb';
 import Picker from '@emoji-mart/react';
 import { FaRegHeart, FaHeart } from "react-icons/fa";
@@ -6,7 +6,16 @@ import { FaRegHeart, FaHeart } from "react-icons/fa";
 const DEFAULT_EMOJIS = ['👍', '❤️', '😃', '😢', '🙏', '👎', '😡'];
 const MAX_EMOJIS = 7;
 
-const ImageModal = ({ image, onClose, user }) => {
+const ImageModal = ({ image, onClose, user, focusComment }) => {
+  const commentInputRef = useRef(null);
+
+  useEffect(() => {
+    if (focusComment && commentInputRef.current) {
+      commentInputRef.current.focus();
+      commentInputRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [focusComment]);
+
   const [comment, setComment] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [emojiBar, setEmojiBar] = useState(DEFAULT_EMOJIS);
@@ -48,10 +57,10 @@ const ImageModal = ({ image, onClose, user }) => {
       db.transact([
         db.tx.reactions[existing.id].delete(),
         db.tx.feed[crypto.randomUUID()].update({
-          type: "reaction-removed",
+          type: "reaction_removed",
+          user: user,
           imageId: image.id,
           emoji: emojiValue,
-          user,
           createdAt: Date.now(),
         }),
       ]);
@@ -183,8 +192,8 @@ const ImageModal = ({ image, onClose, user }) => {
           alt={image.alt_description}
           className="w-full max-h-[60vh] object-contain rounded-xl mb-6 shadow"
         />
-        <h2 className="text-xl font-bold mb-3 text-gray-800">{image.description || 'Untitled'}</h2>
         
+
         {/* Horizontal emoji bar with + button */}
         <div className="flex items-center gap-2 justify-center bg-pink-100 rounded-full px-4 py-2 mb-4 shadow">
           {emojiBar.map((emoji) => {
@@ -228,7 +237,7 @@ const ImageModal = ({ image, onClose, user }) => {
         )}
 
         {/* Like button */}
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mb-1">
           <button
             className="flex items-center gap-1 text-2xl transition-colors"
             onClick={() => handleLike(image.id)}
@@ -242,10 +251,11 @@ const ImageModal = ({ image, onClose, user }) => {
           </button>
         </div>
 
-        <div className="mt-8 w-full">
+        <div className="mt-2 w-full">
           <h3 className="text-lg font-semibold mb-2 text-gray-700">Comments</h3>
           <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
             <input
+              ref={commentInputRef}
               type="text"
               className="flex-1 border border-gray-300 bg-gray-50 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
               placeholder="Add a comment..."
@@ -285,6 +295,12 @@ const ImageModal = ({ image, onClose, user }) => {
                           imageId: image.id,
                           text: c.text,
                           user,
+                          createdAt: Date.now(),
+                        }),
+                        db.tx.feed[crypto.randomUUID()].update({
+                          type: "comment_deleted",
+                          user,
+                          imageId: image.id,
                           createdAt: Date.now(),
                         }),
                       ]);
