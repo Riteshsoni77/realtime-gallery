@@ -25,6 +25,7 @@ A real-time, multi-user image gallery built with React, Tailwind CSS, Unsplash A
 ### 1. Clone the repository
 
 ```sh
+from the ritesh branch
 git clone https://github.com/Riteshsoni77/realtime-gallery.git
 cd realtime-gallery
 ```
