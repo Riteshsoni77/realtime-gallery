@@ -1,6 +1,6 @@
 const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
 
-export const fetchImages = async (page = 1, perPage = 12) => {
+export const fetchImages = async (page = 1, perPage = 1200) => {
   const url = `https://api.unsplash.com/photos?page=${page}&per_page=${perPage}`;
   const response = await fetch(url, {
     headers: {
@@ -13,7 +13,7 @@ export const fetchImages = async (page = 1, perPage = 12) => {
 };
 
 
-export const searchImages = async (query, page = 1, perPage = 12) => {
+export const searchImages = async (query, page = 1, perPage = 120) => {
   const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
   const response = await fetch(url, {
     headers: {

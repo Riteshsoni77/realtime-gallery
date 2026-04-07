@@ -4,11 +4,13 @@ import ImageModal from "./ImageModal";
 import { db } from "../instantdb";
 import { useUserStore } from "../store/userStore";
 import { FaRegHeart, FaHeart, FaRegComment } from "react-icons/fa";
+import { useDebounce } from "use-debounce"; // <-- Add this import
 
 const Gallery = ({ loader }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [focusComment, setFocusComment] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebounce(search, 400); // <-- Add this line
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1); // Track current page
@@ -89,10 +91,10 @@ const Gallery = ({ loader }) => {
     setLoading(true);
     try {
       let imgs = [];
-      if (search.trim() === "") {
+      if (debouncedSearch.trim() === "") {
         imgs = await fetchImages(page);
       } else {
-        imgs = await searchImages(search, page);
+        imgs = await searchImages(debouncedSearch, page);
       }
       setImages(prev =>
         page === 1 ? imgs : [...prev, ...imgs]
@@ -102,18 +104,20 @@ const Gallery = ({ loader }) => {
       setHasMore(false);
     }
     setLoading(false);
-  }, [search, page]);
+  }, [debouncedSearch, page]);
 
   
   useEffect(() => {
+    setImages([]);
     setPage(1);
-  }, [search]);
+    setHasMore(true);
+  }, [debouncedSearch]);
 
   
   useEffect(() => {
     loadImages();
     
-  }, [page, search]);
+  }, [page, loadImages]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -129,6 +133,8 @@ const Gallery = ({ loader }) => {
     observer.observe(loader.current);
     return () => observer.disconnect();
   }, [loader, hasMore, loading]);
+
+  const galleryLoader = useRef(null);
 
   return (
     <div className="min-h-screen bg-gray-50 px-4">
@@ -251,7 +257,7 @@ const Gallery = ({ loader }) => {
         <div className="text-center py-6 text-gray-500">Loading...</div>
       )}
 
-      <div ref={loader} className="h-10" />
+      <div ref={galleryLoader} className="h-10" />
     </div>
   );
 };

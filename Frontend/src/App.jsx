@@ -18,7 +18,7 @@ function App() {
     setShowPrompt(!user);
   }, [user]);
 
-  // Fetch images with pagination
+  
   const loadImages = useCallback(async () => {
     setLoading(true);
     try {
@@ -55,7 +55,7 @@ function App() {
   return (
     <div className="flex min-h-screen relative">
       <div className="w-[75%] border-r border-gray-200 relative">
-        {/* Username popup */}
+     
         {showPrompt && (
           <div className="absolute left-1/2 top-8 -translate-x-1/2 z-50">
             <div className="bg-white border border-gray-200 shadow-lg rounded px-6 py-4 flex flex-col items-center">
