@@ -17,7 +17,6 @@ function App() {
   useEffect(() => {
     setShowPrompt(!user);
   }, [user]);
-
   
   const loadImages = useCallback(async () => {
     setLoading(true);
